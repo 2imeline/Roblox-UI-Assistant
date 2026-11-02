@@ -1,0 +1,25 @@
+[package]
+name = "roblox-ui-builder"
+version = "0.1.0"
+description = "Visual builder for Roblox UI (.rblxui)"
+edition = "2021"
+
+[lib]
+name = "roblox_ui_builder_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-http = "2.8.3"
+tauri-plugin-single-instance = "2.5.5"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

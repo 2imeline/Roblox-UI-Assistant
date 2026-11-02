@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/2imeline/Roblox-UI-Assistant/blob/main/format/rblxui.schema.json",
+  "title": "rblxui/1.0",
+  "description": "A Roblox ScreenGui with its styling and working Luau, stored as JSON. See format/SPEC.md.",
+  "type": "object",
+  "required": ["schema", "screenGui"],
+  "properties": {
+    "schema": { "const": "rblxui/1.0" },
+    "instructions": { "type": "string", "description": "Self-describing notes so any Claude session can read and rebuild the file." },
+    "screenGui": {
+      "description": "The root ScreenGui. `class` may be omitted (it is always ScreenGui).",
+      "allOf": [{ "$ref": "#/$defs/component" }, { "properties": { "class": { "const": "ScreenGui" } } }]
+    },
+    "lua": { "type": "string", "description": "Flat Studio command-bar script generated from screenGui." }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "literal": {
+      "description": "A Lua literal expression as you would assign it in Luau, e.g. \"UDim2.new(0, 200, 0, 50)\", \"Color3.fromRGB(30, 30, 40)\", \"Enum.Font.GothamBold\", \"\\\"Play\\\"\". Bare JSON numbers and booleans are accepted too.",
+      "type": ["string", "number", "boolean"]
+    },
+    "component": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "class": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$", "description": "Roblox ClassName." },
+        "name": { "type": "string", "minLength": 1 },
+        "properties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/literal" } },
+        "attributes": { "type": "object", "additionalProperties": { "$ref": "#/$defs/literal" } },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/component" } },
+        "scripts": { "type": "array", "items": { "$ref": "#/$defs/script" } }
+      },
+      "additionalProperties": false
+    },
+    "script": {
+      "type": "object",
+      "required": ["name", "type", "source"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["LocalScript", "Script", "ModuleScript"] },
+        "source": { "type": "string", "description": "Complete Luau source." },
+        "enabled": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    }
+  }
+}
