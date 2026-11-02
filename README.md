@@ -175,7 +175,8 @@ mcp/server.mjs    MCP stdio server + localhost WebSocket for the builder
 ### Publishing a release
 
 1. Raise `version` in `app/src-tauri/tauri.conf.json` (and to match, in `app/package.json` and `app/src-tauri/Cargo.toml`).
-2. Commit, then push a tag with that version: `git tag v0.2.0 && git push origin v0.2.0`.
+2. Commit, then push a tag with that version (`git tag v0.2.0 && git push origin v0.2.0`), or run the
+   "Test and build" workflow from the Actions tab with **release** ticked; it creates the tag itself.
 
 CI builds Windows and macOS, signs the update packages, and publishes the release with `latest.json`, which
 installed apps read when you click Check for updates. Signing needs the repository secret

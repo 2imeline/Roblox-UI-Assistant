@@ -5,7 +5,13 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  # Run manually with "release" ticked to publish v<app version> without pushing a tag yourself.
   workflow_dispatch:
+    inputs:
+      release:
+        description: Publish a release for the current app version
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -72,8 +78,8 @@ jobs:
         with:
           projectPath: app
           args: ${{ matrix.args }}
-          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-          releaseName: Roblox UI Builder ${{ github.ref_name }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || (inputs.release && 'v__VERSION__') || '' }}
+          releaseName: Roblox UI Builder v__VERSION__
           releaseBody: Download the .exe (Windows) or .dmg (macOS) below. Installed apps update themselves with Check for updates.
           releaseDraft: false
       - uses: actions/upload-artifact@v4
