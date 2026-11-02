@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissions for the builder window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-set-title",
@@ -11,9 +13,15 @@
     "dialog:allow-save",
     "dialog:allow-confirm",
     "dialog:allow-message",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://thumbnails.roblox.com/*" }]
+      "allow": [
+        {
+          "url": "https://thumbnails.roblox.com/*"
+        }
+      ]
     }
   ]
 }

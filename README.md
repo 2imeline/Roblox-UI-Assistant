@@ -20,8 +20,11 @@ Claude ──MCP (stdio)──> mcp/server.mjs ──WebSocket (localhost)──
 
 ### 1. The builder app
 
-Download it from the repository's **Releases** (tagged builds) or from the **Actions** tab (artifact of the
-latest "Test and build" run): `Roblox UI Builder_x.y.z_x64-setup.exe` for Windows, `.dmg` for macOS.
+Download it from [the latest release](https://github.com/2imeline/Roblox-UI-Assistant/releases/latest):
+`Roblox UI Builder_x.y.z_x64-setup.exe` for Windows, `Roblox UI Builder_x.y.z_universal.dmg` for macOS.
+
+You only download it once. **Check for updates** in the toolbar installs newer releases and restarts the app.
+Updates are signed, and the app refuses any update that is not.
 
 The builds are not code-signed yet. On macOS, right-click the app and choose **Open** the first time.
 On Windows, choose **More info > Run anyway** in SmartScreen.
@@ -168,6 +171,16 @@ app/src/editor    React panels, canvas interaction, undo store, file IO, MCP bri
 app/src-tauri     desktop shell: file dialogs, file association, single instance
 mcp/server.mjs    MCP stdio server + localhost WebSocket for the builder
 ```
+
+### Publishing a release
+
+1. Raise `version` in `app/src-tauri/tauri.conf.json` (and to match, in `app/package.json` and `app/src-tauri/Cargo.toml`).
+2. Commit, then push a tag with that version: `git tag v0.2.0 && git push origin v0.2.0`.
+
+CI builds Windows and macOS, signs the update packages, and publishes the release with `latest.json`, which
+installed apps read when you click Check for updates. Signing needs the repository secret
+`TAURI_SIGNING_PRIVATE_KEY` (from `npx tauri signer generate`; its public key is in `tauri.conf.json`). Keep that
+key safe: if it is lost, installed apps cannot update and everyone has to download the app again.
 
 `UPDATE_EXAMPLE=1 npm test` in `app/` rewrites `examples/MainHUD.rblxui` in canonical form after you edit it.
 

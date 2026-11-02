@@ -122,3 +122,27 @@ export async function guardClose() {
     window.addEventListener('beforeunload', (e) => { if (store.dirty) e.preventDefault(); });
   }
 }
+
+/** Checks GitHub Releases for a newer signed build; installs it and restarts after the user agrees. */
+export async function checkForUpdates(status: (s: string) => void) {
+  const [{ check }, { relaunch }, { dialog }] = await Promise.all([import('@tauri-apps/plugin-updater'), import('@tauri-apps/plugin-process'), tauri()]);
+  const title = 'Roblox UI Builder';
+  try {
+    status('Checking…');
+    const update = await check();
+    if (!update) { await dialog.message('You have the latest version.', { title }); return; }
+    const ok = await dialog.confirm(`Version ${update.version} is available (you have ${update.currentVersion}).${update.body ? `\n\n${update.body}` : ''}\n\nInstall it and restart?`, { title, okLabel: 'Update', cancelLabel: 'Later' });
+    if (!ok || !(await confirmDiscard())) return;
+    let total = 0, got = 0;
+    await update.downloadAndInstall((e) => {
+      if (e.event === 'Started') total = e.data.contentLength ?? 0;
+      else if (e.event === 'Progress') { got += e.data.chunkLength; status(total ? `Updating ${Math.round((got / total) * 100)}%` : 'Updating…'); }
+      else status('Restarting…');
+    });
+    await relaunch();
+  } catch (e) {
+    await dialog.message(`Could not update: ${e instanceof Error ? e.message : String(e)}`, { title, kind: 'error' });
+  } finally {
+    status('');
+  }
+}

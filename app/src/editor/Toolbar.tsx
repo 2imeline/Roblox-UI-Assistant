@@ -1,10 +1,12 @@
 import { reclaimBridge } from './bridge';
-import { exportAs, openFile, saveFile } from './io';
+import { useState } from 'react';
+import { checkForUpdates, exportAs, isTauri, openFile, saveFile } from './io';
 import { DEVICES, store, useStore } from './store';
 
 export function Toolbar() {
   const s = useStore();
   const play = s.mode === 'play';
+  const [updating, setUpdating] = useState('');
   return (
     <header className="toolbar">
       <span className="brand">Roblox UI Builder</span>
@@ -39,6 +41,11 @@ export function Toolbar() {
         <label className="check"><input type="checkbox" checked={s.showTopbar} onChange={(e) => store.set('showTopbar', e.target.checked)} />Topbar</label>
       </div>
       <span className="spacer" />
+      {isTauri && (
+        <button onClick={() => checkForUpdates(setUpdating)} disabled={!!updating} title="Download and install the newest version">
+          {updating || 'Check for updates'}
+        </button>
+      )}
       <span className="doc">{s.name}{s.dirty ? ' •' : ''}</span>
       {s.mcp === 'replaced' ? (
         <button className="mcp" onClick={reclaimBridge} title="Another builder window is connected to Claude. Click to connect this one instead.">

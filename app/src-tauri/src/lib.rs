@@ -60,6 +60,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(Opened(Mutex::new(rblxui_arg(std::env::args()))))
         .invoke_handler(tauri::generate_handler![read_text, write_text, take_opened_file])
         .build(tauri::generate_context!())
