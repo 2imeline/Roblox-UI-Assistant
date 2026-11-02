@@ -24,6 +24,10 @@ function handle(req: Request): unknown {
   throw new Error(`Unknown method ${req.method}`);
 }
 
+let reconnect: () => void = () => {};
+/** Takes the Claude connection back after another builder window took it over. */
+export const reclaimBridge = () => reconnect();
+
 export function connectBridge() {
   const port = Number(new URLSearchParams(location.search).get('mcpPort')) || DEFAULT_PORT;
   let delay = 1000;
@@ -43,11 +47,14 @@ export function connectBridge() {
       try { ws.send(JSON.stringify({ id: req.id, result: handle(req) })); }
       catch (e) { ws.send(JSON.stringify({ id: req.id, error: e instanceof Error ? e.message : String(e) })); }
     };
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      // 4000: a newer builder window took over. Retrying would kick it off again, so wait for the user.
+      if (ev.code === 4000) { store.set('mcp', 'replaced'); return; }
       store.set('mcp', 'off');
       setTimeout(open, delay);
       delay = Math.min(delay * 2, 5000);
     };
   };
+  reconnect = () => { delay = 1000; open(); };
   open();
 }

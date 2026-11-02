@@ -1,3 +1,4 @@
+import { reclaimBridge } from './bridge';
 import { exportAs, openFile, saveFile } from './io';
 import { DEVICES, store, useStore } from './store';
 
@@ -39,9 +40,15 @@ export function Toolbar() {
       </div>
       <span className="spacer" />
       <span className="doc">{s.name}{s.dirty ? ' •' : ''}</span>
-      <span className={`mcp ${s.mcp}`} title={s.mcp === 'connected' ? 'Connected to Claude (MCP server)' : 'Waiting for the MCP server (see README)'}>
-        {s.mcp === 'connected' ? 'Claude connected' : 'Claude offline'}
-      </span>
+      {s.mcp === 'replaced' ? (
+        <button className="mcp" onClick={reclaimBridge} title="Another builder window is connected to Claude. Click to connect this one instead.">
+          Claude: other window
+        </button>
+      ) : (
+        <span className={`mcp ${s.mcp}`} title={s.mcp === 'connected' ? 'Connected to Claude (MCP server)' : 'Waiting for the MCP server (see README)'}>
+          {s.mcp === 'connected' ? 'Claude connected' : 'Claude offline'}
+        </span>
+      )}
     </header>
   );
 }

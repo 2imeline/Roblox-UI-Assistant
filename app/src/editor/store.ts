@@ -33,7 +33,7 @@ class Store {
   backdrop = 'sky';
   showTopbar = true;
   logs: LogEntry[] = [];
-  mcp: 'off' | 'connecting' | 'connected' = 'off';
+  mcp: 'off' | 'connecting' | 'connected' | 'replaced' = 'off';
   /** Bumped on every change; panels re-render from it. */
   version = 0;
   treeVersion = 0;
