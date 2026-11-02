@@ -70,6 +70,7 @@ end
 function task.delay(t, f, ...)
 	t = math.max(tonumber(t) or 0, 0)
 	local co = type(f) == "thread" and f or coroutine.create(f)
+	now = H.now()
 	sleeping[#sleeping + 1] = { co = co, at = now + t, args = tpack(...) }
 	H.wake(t)
 	return co
@@ -113,6 +114,8 @@ local function signalOf(id, key)
 end
 
 local function listen(sig)
+	-- A new RunService listener must start the frame loop, which otherwise only runs while timers are due.
+	if sig._id == INIT.runService then H.wake(0) end
 	if sig._id and not sig._listened then
 		sig._listened = true
 		H.listen(sig._id, sig._key)
@@ -1103,10 +1106,12 @@ local function requireModule(m)
 	Modules[id] = rec
 	local fn = H.call(id, "LoadModule")
 	if type(fn) == "string" then Modules[id] = nil error(dec(fn), 2) end
-	local results = tpack(fn())
+	local results = tpack(pcall(fn))
+	-- Forget a failed module so the next require reports its real error again.
+	if not results[1] then Modules[id] = nil error(results[2], 0) end
 	rec.loading = false
-	if results.n ~= 1 then Modules[id] = nil error("Module code did not return exactly one value", 2) end
-	rec.value = results[1]
+	if results.n ~= 2 then Modules[id] = nil error("Module code did not return exactly one value", 2) end
+	rec.value = results[2]
 	return rec.value
 end
 
@@ -1132,7 +1137,7 @@ local globals = {
 	wait = function(t) local e = task.wait(math.max(tonumber(t) or 0, 0.029)) return e, now - startClock end,
 	spawn = function(f) task.defer(f) end,
 	delay = function(t, f) task.delay(t, f) end,
-	tick = makeTick, time = function() return now - startClock end, elapsedTime = function() return H.now() - startClock end,
+	tick = makeTick, time = function() return H.now() - startClock end, elapsedTime = function() return H.now() - startClock end,
 	typeof = typeofValue,
 	print = function(...) H.log("out", fmt(...)) end,
 	warn = function(...) H.log("warn", fmt(...)) end,

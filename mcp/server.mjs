@@ -14,8 +14,9 @@ const TIMEOUT = 20000;
 const VERSION = '0.1.0';
 const log = (...a) => process.stderr.write(`[rblxui-mcp] ${a.join(' ')}\n`);
 
-// Browsers always send Origin, so only the app itself (Tauri, or the Vite dev server) and Node peers get in.
-export const ALLOWED_ORIGIN = /^(tauri:\/\/localhost|https?:\/\/tauri\.localhost|https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+// Browsers always send Origin, so only the app itself (Tauri, or the builder's dev server on port 1420) and
+// Node peers get in. Other local web servers (any localhost:port) are refused.
+export const ALLOWED_ORIGIN = /^(tauri:\/\/localhost|https?:\/\/tauri\.localhost|http:\/\/(localhost|127\.0\.0\.1):1420)$/;
 
 // ---------------- bridge ----------------
 let builder = null; // WebSocket of the connected builder (server mode)

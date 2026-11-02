@@ -72,6 +72,9 @@ test('MCP protocol, tools, origin check and peer relay', async (t) => {
   const evil = new WebSocket(`ws://127.0.0.1:${PORT}`, { origin: 'https://evil.example' });
   const [err] = await once(evil, 'error');
   assert.match(String(err.message), /401/);
+  // Nor can another local web server.
+  const local = new WebSocket(`ws://127.0.0.1:${PORT}`, { origin: 'http://localhost:3000' });
+  assert.match(String((await once(local, 'error'))[0].message), /401/);
 
   const b = fakeBuilder();
   await once(b.ws, 'open');

@@ -169,5 +169,133 @@ describe('instrument', () => {
     expect(out).toContain('repeat __rbxc(); x = 1');
     expect(out).toContain('"do repeat" -- do\n');
     expect(out.split('\n').length).toBe(src.split('\n').length);
+    // \z inside a string skips the following line break; the rest is still string, not code.
+    expect(instrument('return "a\\z\n   do b"')).not.toContain('__rbxc();');
+  });
+});
+
+describe('runtime regressions', () => {
+  const out = (h: { logs: { kind: string; msg: string }[] }) => h.logs.filter((l) => l.kind !== 'out' ? l.kind === 'error' : true).map((l) => l.msg);
+  const layoutHost = (get: () => Runtime | undefined) => {
+    let dirty = true;
+    return {
+      dirty: () => { dirty = true; },
+      ensureLayout: () => {
+        const rt = get();
+        if (!rt || !dirty) return;
+        dirty = false;
+        for (const sg of rt.playerGui.children) layoutScreenGui(sg, { viewport: { w: 1280, h: 720 }, topInset: 58, safe: { l: 0, t: 0, r: 0, b: 0 }, measureText: () => ({ w: 10, h: 10 }) });
+        rt.afterLayout();
+      },
+    };
+  };
+
+  it('fires Destroying for Destroy called from an event handler', async () => {
+    const { $, click, h } = await boot(`
+      local menu = script.Parent.Menu
+      menu.Destroying:Connect(function() print("destroying") end)
+      script.Parent.Play.MouseButton1Click:Connect(function() menu:Destroy() end)`);
+    click($('Play'));
+    expect(out(h)).toEqual(['destroying']);
+  });
+
+  it('reads and writes the legacy Font property', async () => {
+    const { h } = await boot(`
+      local t = script.Parent.Menu.Title
+      t.Font = Enum.Font.GothamBold
+      print(t.Font)`);
+    expect(out(h)).toEqual(['Enum.Font.GothamBold']);
+  });
+
+  it('replays a tween after a newer tween took over its property', async () => {
+    const { $, rt, advance } = await boot(`
+      local TS = game:GetService("TweenService")
+      local b = script.Parent.Play
+      local tin = TS:Create(b, TweenInfo.new(0.5), { BackgroundTransparency = 0.5 })
+      local tout = TS:Create(b, TweenInfo.new(0.5), { BackgroundTransparency = 0 })
+      b.MouseEnter:Connect(function() tin:Play() end)
+      b.MouseLeave:Connect(function() tout:Play() end)`);
+    const b = $('Play');
+    rt.pointerMove(10, 70, [b]); advance(100);
+    rt.pointerMove(900, 700, []); advance(1000);
+    rt.pointerMove(10, 70, [b]); advance(1000);
+    expect(b.get('BackgroundTransparency')).toBeCloseTo(0.5);
+  });
+
+  it('runs RunService loops with no timers pending', async () => {
+    const { $, click, advance, h } = await boot(`
+      local n = 0
+      game:GetService("RunService").Heartbeat:Connect(function() n += 1 end)
+      script.Parent.Play.MouseButton1Click:Connect(function() print(n > 10) end)`);
+    advance(500);
+    click($('Play'));
+    expect(out(h)).toEqual(['true']);
+  });
+
+  it('keeps time() and task.delay on the real clock while idle', async () => {
+    const { $, click, rt, h } = await boot(`
+      script.Parent.Play.MouseButton1Click:Connect(function()
+        print(time() > 0.2)
+        task.delay(0.2, function() print("delayed") end)
+        task.defer(function() end)
+      end)`);
+    await new Promise((r) => setTimeout(r, 300));
+    click($('Play'));
+    rt.step(performance.now() + 20);
+    expect(out(h)).toEqual(['true']);
+    rt.step(performance.now() + 250);
+    expect(out(h)).toEqual(['true', 'delayed']);
+  });
+
+  it('delivers events queued during a property read after the handler returns', async () => {
+    let rt: Runtime | undefined;
+    const lh = layoutHost(() => rt);
+    const r = await boot(`
+      local menu = script.Parent.Menu
+      menu:GetPropertyChangedSignal("Visible"):Connect(function() print("handler") end)
+      script.Parent.Play.MouseButton1Click:Connect(function()
+        menu.Visible = true
+        local _ = menu.AbsoluteSize
+        print("after read")
+      end)`, { ensureLayout: lh.ensureLayout });
+    rt = r.rt;
+    rt.world.on(lh.dirty);
+    r.click(r.$('Play'));
+    expect(out(r.h)).toEqual(['after read', 'handler']);
+  });
+
+  it('fires AbsoluteContentSize changes for list layouts', async () => {
+    let rt: Runtime | undefined;
+    const lh = layoutHost(() => rt);
+    const r = await boot(`
+      local menu = script.Parent.Menu
+      local list = Instance.new("UIListLayout")
+      list.Parent = menu
+      list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() print("ACS", list.AbsoluteContentSize.Y) end)
+      script.Parent.Play.MouseButton1Click:Connect(function()
+        local f = Instance.new("Frame") f.Size = UDim2.new(0, 10, 0, 50) f.Parent = menu
+      end)`, { ensureLayout: lh.ensureLayout });
+    rt = r.rt;
+    rt.world.on(lh.dirty);
+    r.click(r.$('Play'));
+    lh.ensureLayout(); // the renderer's next frame
+    expect(out(r.h)).toEqual(['ACS 50']);
+  });
+
+  it('reports a failing module error on every require', async () => {
+    const { h } = await boot(`
+      local m = script.Parent.Bad
+      print(pcall(require, m))
+      print(pcall(require, m))`, {}, [{ class: 'ModuleScript', name: 'Bad', properties: { Source: JSON.stringify('error("boom") return 1') } }]);
+    const lines = out(h);
+    expect(lines).toHaveLength(2);
+    for (const l of lines) expect(l).toMatch(/^false\s.*boom/);
+  });
+
+  it('starts a LocalScript when it is enabled during play', async () => {
+    const { h } = await boot('script.Parent.Later.Enabled = true', {}, [
+      { class: 'LocalScript', name: 'Later', properties: { Source: JSON.stringify('print("later")'), Enabled: 'false' } },
+    ]);
+    expect(out(h)).toEqual(['later']);
   });
 });

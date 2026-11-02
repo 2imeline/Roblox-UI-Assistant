@@ -46,7 +46,10 @@ export class Inst {
     return v !== undefined ? v : defaultsOf(this.className).get(key);
   }
 
-  has(key: string) { return key === 'Name' || key === 'ClassName' || this.props.has(key) || defaultsOf(this.className).has(key); }
+  has(key: string) {
+    const d = defaultsOf(this.className);
+    return key === 'Name' || key === 'ClassName' || this.props.has(key) || d.has(key) || (key === 'Font' && d.has('FontFace'));
+  }
 
   /** Sets a property; Font is stored as its FontFace equivalent, like Roblox does. */
   set(key: string, value: Value) {

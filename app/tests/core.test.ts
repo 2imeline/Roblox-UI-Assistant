@@ -101,6 +101,26 @@ describe('.rblxui', () => {
     expect(longString('a]=]b')).toBe('[==[\na]=]b]==]');
   });
 
+  it('keeps names and control characters from becoming code', () => {
+    const { root } = parseRblxui({ schema: 'rblxui/1.0', screenGui: { name: 'HUD\nprint("pwned")\n--' } });
+    const lines = generateLua(root).split('\n');
+    expect(lines[0]).toMatch(/^-- HUD print\("pwned"\) -- /);
+    expect(lines).not.toContain('print("pwned")');
+    expect(parseLiteral(toLiteral('\x015'))).toBe('\x015');
+  });
+
+  it('round-trips scripts that have children and attributes', () => {
+    const { root } = parseRblxui({ schema: 'rblxui/1.0', screenGui: { name: 'G', children: [
+      { class: 'LocalScript', name: 'Main', properties: { Source: '"return 1"' }, attributes: { Speed: '5' }, children: [
+        { class: 'ModuleScript', name: 'Config', properties: { Source: '"return {}"' } }] }] } });
+    const again = parseRblxui(toRblxui(root)).root;
+    const main = again.findFirstChild('Main')!;
+    expect(main.className).toBe('LocalScript');
+    expect(main.attrs.get('Speed')).toBe(5);
+    expect(main.findFirstChild('Config')?.className).toBe('ModuleScript');
+    expect(main.get('Source')).toBe('return 1');
+  });
+
   it('generates well-formed rbxmx', () => {
     const { root } = parseRblxui(sample);
     const xml = generateRbxmx(root);

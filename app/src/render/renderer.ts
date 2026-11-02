@@ -68,6 +68,12 @@ function tintFilter(c: Color3): string {
     document.body.appendChild(svg);
   }
   if (!document.getElementById(id)) {
+    // Tweened tints make a new color every frame: drop the filters no element uses any more.
+    if (tintDefs.childElementCount >= 512) {
+      const used = new Set<string>();
+      for (const el of document.querySelectorAll<HTMLElement>('[style*="rbxtint-"]')) for (const m of el.style.cssText.matchAll(/rbxtint-[0-9a-f]{6}/g)) used.add(m[0]);
+      for (const f of [...tintDefs.children]) if (!used.has(f.id)) f.remove();
+    }
     const f = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
     f.id = id;
     f.setAttribute('color-interpolation-filters', 'sRGB');

@@ -20,7 +20,11 @@ export function instrument(src: string): string {
   };
   const skipQuoted = (at: number, q: string): number => {
     let j = at + 1;
-    while (j < n && src[j] !== q && src[j] !== '\n') j += src[j] === '\\' ? 2 : 1;
+    while (j < n && src[j] !== q && src[j] !== '\n') {
+      if (src[j] !== '\\') { j++; continue; }
+      // \z skips the whitespace after it, line breaks included.
+      if (src[j + 1] === 'z') { j += 2; while (j < n && /\s/.test(src[j])) j++; } else j += 2;
+    }
     return j + 1;
   };
   // Scans a backtick string from `at` (just after the opening backtick or a closing `}`) to its end or the next `{`.

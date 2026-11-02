@@ -40,6 +40,11 @@ const CONTAINER_SERVICES = ['Workspace', 'ReplicatedStorage', 'ReplicatedFirst',
 const READ_ONLY = new Set(['ClassName', 'AbsolutePosition', 'AbsoluteSize', 'AbsoluteRotation', 'AbsoluteCanvasSize', 'AbsoluteWindowSize',
   'AbsoluteContentSize', 'TextBounds', 'TextFits', 'LocalPlayer', 'PlaybackState', 'IsPlaying', 'IsLoaded', 'GuiState']);
 const STRICT_BASES = ['GuiBase2d', 'UIBase', 'LuaSourceContainer', 'ValueBase'];
+/** Properties the layout pass computes, with the base class they exist on; afterLayout fires their change events. */
+const LAYOUT_PROPS: [string, string][] = [
+  ['AbsoluteSize', 'GuiBase2d'], ['AbsolutePosition', 'GuiBase2d'], ['AbsoluteWindowSize', 'ScrollingFrame'],
+  ['AbsoluteCanvasSize', 'ScrollingFrame'], ['AbsoluteContentSize', 'UIGridStyleLayout'], ['TextBounds', 'GuiObject'],
+];
 const STRICT_CLASSES = new Set(['Folder', 'Configuration', 'BindableEvent', 'BindableFunction', 'RemoteEvent', 'RemoteFunction', 'UnreliableRemoteEvent']);
 const ATTR_TYPES = new Set(['nil', 'boolean', 'number', 'string', 'UDim', 'UDim2', 'Color3', 'Vector2', 'Vector3', 'NumberRange', 'Rect', 'ColorSequence', 'NumberSequence', 'Font', 'Enum']);
 
@@ -251,6 +256,10 @@ export class Runtime {
     let s = this.listened.get(id);
     if (!s) this.listened.set(id, (s = new Set()));
     s.add(key);
+    // Record the current value so the next layout pass can tell whether it changed.
+    const p = LAYOUT_PROPS.find(([k]) => key === 'prop:' + k);
+    const inst = p && this.world.byId.get(id);
+    if (p && inst && isA(inst.className, p[1])) { const v = this.computed(inst, p[0]); if (v !== undefined) this.absCache.set(id + p[0], v); }
   }
   private has(inst: Inst, key: string) { return this.listened.get(inst.id)?.has(key) === true; }
 
@@ -262,12 +271,15 @@ export class Runtime {
 
   /** Deferred event delivery, like Roblox's SignalBehavior.Deferred. */
   flush() {
+    // Re-entered from inside Luau (a property read that ran layout, a focus change): the outer flush delivers.
+    if (this.depth > 0) return;
     for (let round = 0; round < 50 && (this.queue.length || this.pendingScripts.length || this.dropped.length); round++) {
       const scripts = this.pendingScripts.splice(0);
       for (const s of scripts) if (this.runnable(s)) this.runScript(s);
       const batch = this.queue.splice(0);
       for (const e of batch) this.enter(() => this.api.fire.call(e.id, e.key, ...e.args.map((a) => a ?? null)));
-      for (const id of this.dropped.splice(0)) this.enter(() => this.api.dropped.call(id));
+      // Drop signals only once queued events (such as Destroying) have been delivered.
+      if (!this.queue.length) for (const id of this.dropped.splice(0)) this.enter(() => this.api.dropped.call(id));
     }
     if (this.queue.length) { this.host.log('warn', 'Event re-entrancy depth exceeded; some events were dropped'); this.queue = []; }
   }
@@ -275,6 +287,7 @@ export class Runtime {
   private onWorld(ev: WorldEvent) {
     const inst = ev.inst;
     if (ev.k === 'prop') {
+      if (ev.key === 'Enabled' && this.runnable(inst)) { this.pendingScripts.push(inst); if (this.depth === 0) this.host.requestStep(0); }
       if (!this.listened.has(inst.id)) return;
       this.enqueue(inst, 'prop:' + ev.key);
       if (isA(inst.className, 'ValueBase')) { if (ev.key === 'Value') this.enqueue(inst, 'Changed', [enc(inst.get('Value'))]); }
@@ -308,11 +321,15 @@ export class Runtime {
   /** Fires Absolute* change events; call after each layout pass. */
   afterLayout() {
     for (const [id, keys] of this.listened) {
-      if (!keys.has('prop:AbsoluteSize') && !keys.has('prop:AbsolutePosition') && !keys.has('Changed')) continue;
-      const inst = this.world.byId.get(id);
-      if (!inst || inst.destroyed || !isA(inst.className, 'GuiBase2d')) continue;
-      for (const key of ['AbsoluteSize', 'AbsolutePosition']) {
-        const v = this.computed(inst, key) as Value;
+      const all = keys.has('Changed');
+      let inst: Inst | undefined;
+      for (const [key, base] of LAYOUT_PROPS) {
+        if (!all && !keys.has('prop:' + key)) continue;
+        inst ??= this.world.byId.get(id);
+        if (!inst || inst.destroyed) break;
+        if (!isA(inst.className, base)) continue;
+        const v = this.computed(inst, key);
+        if (v === undefined) continue;
         const ck = id + key;
         const old = this.absCache.get(ck);
         if (old !== undefined && !equals(old, v)) {

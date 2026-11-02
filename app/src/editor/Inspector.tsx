@@ -117,19 +117,23 @@ function ValueEditor({ k, value, set, disabled }: { k: string; value: Value; set
 
 function ScriptEditor({ inst, disabled }: { inst: Inst; disabled: boolean }) {
   const src = String(inst.get('Source') ?? '');
+  // Local draft: the store re-renders a frame later, and a controlled textarea would jump the caret meanwhile.
+  const [draft, setDraft] = useState(src);
+  useEffect(() => setDraft(src), [src]);
+  const update = (v: string) => { setDraft(v); inst.set('Source', v); };
   return (
     <textarea
       className="code"
-      value={src}
+      value={draft}
       disabled={disabled}
       spellCheck={false}
-      onChange={(e) => inst.set('Source', e.target.value)}
+      onChange={(e) => update(e.target.value)}
       onBlur={() => store.commit()}
       onKeyDown={(e) => {
         if (e.key === 'Tab') {
           e.preventDefault();
           const ta = e.currentTarget, a = ta.selectionStart, b = ta.selectionEnd;
-          inst.set('Source', src.slice(0, a) + '\t' + src.slice(b));
+          update(draft.slice(0, a) + '\t' + draft.slice(b));
           requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = a + 1; });
         }
       }}

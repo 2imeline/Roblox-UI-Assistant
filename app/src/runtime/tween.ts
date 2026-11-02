@@ -40,6 +40,8 @@ interface Active {
   spec: TweenSpec;
   goals: Map<string, Value>;
   starts: Map<string, Value>;
+  /** Goals a newer tween took over during this play; the tween keeps them for its next play. */
+  lost: Set<string>;
   elapsed: number;
   state: 'Begin' | 'Delayed' | 'Playing' | 'Paused' | 'Completed' | 'Cancelled';
 }
@@ -51,7 +53,7 @@ export class TweenEngine {
   constructor(private onDone: (tween: Inst, state: 'Completed' | 'Cancelled') => void) {}
 
   create(tween: Inst, target: Inst, spec: TweenSpec, goals: Map<string, Value>) {
-    this.tweens.set(tween, { tween, target, spec, goals, starts: new Map(), elapsed: 0, state: 'Begin' });
+    this.tweens.set(tween, { tween, target, spec, goals, starts: new Map(), lost: new Set(), elapsed: 0, state: 'Begin' });
   }
 
   get busy() { return this.playing.size > 0; }
@@ -63,11 +65,12 @@ export class TweenEngine {
       a.elapsed = 0;
       a.starts = new Map([...a.goals.keys()].map((k) => [k, a.target.get(k) ?? null]));
     }
+    a.lost.clear();
     // A newer tween takes over shared properties of older ones on the same instance.
     for (const other of this.playing) {
       if (other === a || other.target !== a.target) continue;
-      for (const k of a.goals.keys()) other.goals.delete(k);
-      if (!other.goals.size) this.finish(other, 'Cancelled');
+      for (const k of a.goals.keys()) if (other.goals.has(k)) other.lost.add(k);
+      if (other.lost.size === other.goals.size) this.finish(other, 'Cancelled');
     }
     this.setState(a, a.spec.delay > 0 && a.elapsed < a.spec.delay ? 'Delayed' : 'Playing');
     this.playing.add(a);
@@ -104,6 +107,7 @@ export class TweenEngine {
       const k = ease(alpha, a.spec.style, a.spec.dir);
       if (a.target.destroyed) { this.finish(a, 'Cancelled'); continue; }
       for (const [key, goal] of a.goals) {
+        if (a.lost.has(key)) continue;
         const start = a.starts.get(key) ?? goal;
         a.target.set(key, done && !reverses ? goal : lerp(start, goal, k));
       }

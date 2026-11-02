@@ -324,7 +324,8 @@ export function luaString(s: string): string {
     else if (ch === '\n') out += '\\n';
     else if (ch === '\r') out += '\\r';
     else if (ch === '\t') out += '\\t';
-    else if (c < 32 || c === 127) out += `\\${c}`;
+    // Three digits, so a digit that follows is not read as part of the escape.
+    else if (c < 32 || c === 127) out += `\\${String(c).padStart(3, '0')}`;
     else out += ch;
   }
   return out + '"';

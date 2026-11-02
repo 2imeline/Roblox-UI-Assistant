@@ -100,8 +100,10 @@ export function toComponent(inst: Inst): Component {
   const c: Component = { class: inst.className, name: inst.name };
   if (inst.props.size) c.properties = Object.fromEntries([...inst.props].filter(([, v]) => !(v && typeof v === 'object' && v.t === 'Ref')).map(([k, v]) => [k, toLiteral(v)]));
   if (inst.attrs.size) c.attributes = Object.fromEntries([...inst.attrs].map(([k, v]) => [k, toLiteral(v)]));
-  const kids = inst.children.filter((ch) => !isScript(ch.className));
-  const scripts = inst.children.filter((ch) => isScript(ch.className));
+  // A script with children, attributes or extra properties is written as a plain component so nothing is lost.
+  const plain = (ch: Inst) => !ch.children.length && !ch.attrs.size && [...ch.props.keys()].every((k) => k === 'Source' || k === 'Enabled');
+  const kids = inst.children.filter((ch) => !isScript(ch.className) || !plain(ch));
+  const scripts = inst.children.filter((ch) => isScript(ch.className) && plain(ch));
   if (kids.length) c.children = kids.map(toComponent);
   if (scripts.length) {
     c.scripts = scripts.map((s) => {
