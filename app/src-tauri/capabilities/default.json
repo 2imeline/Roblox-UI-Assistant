@@ -20,6 +20,12 @@
       "allow": [
         {
           "url": "https://thumbnails.roblox.com/*"
+        },
+        {
+          "url": "https://apis.roblox.com/asset-delivery-api/*"
+        },
+        {
+          "url": "https://*.rbxcdn.com/*"
         }
       ]
     }

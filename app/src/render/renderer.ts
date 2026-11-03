@@ -118,6 +118,7 @@ export class Renderer {
 
   constructor(private surface: HTMLElement, private opts: RendererOptions) {
     document.fonts?.addEventListener?.('loadingdone', this.onFonts);
+    window.addEventListener('rbx-assets-reset', this.onFonts);
   }
 
   setEnv(env: RenderEnv) { this.env = env; this.invalidateAll(); }
@@ -529,6 +530,7 @@ export class Renderer {
   destroy() {
     this.offWorld?.();
     document.fonts?.removeEventListener?.('loadingdone', this.onFonts);
+    window.removeEventListener('rbx-assets-reset', this.onFonts);
     for (const el of this.rootEls) el.remove();
     this.nodes.clear();
   }

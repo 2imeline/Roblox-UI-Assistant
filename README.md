@@ -137,9 +137,12 @@ images with Fit/Crop/Tile/Slice, ImageRect and ImageColor3. Known differences:
 - **Fonts:** Gotham and Builder Sans are proprietary, so the builder uses Montserrat and Inter. Bodoni,
   Garamond, Highway and SciFi fall back to generic serif/sans. The other Roblox families are the real
   open-source fonts.
-- **Images:** `rbxassetid://` images load through Roblox's thumbnail service (desktop app, internet
-  needed), capped at 420×420, so 9-slice margins on larger images are approximate. Unresolvable images
-  show a red hatch in edit mode.
+- **Images:** with a Roblox Open Cloud API key (toolbar **Image key**: create one at create.roblox.com >
+  Open Cloud > API Keys with the `legacy-asset:manage` permission and accepted IP `0.0.0.0/0`), the desktop
+  app downloads your images at full size, private ones included. Roblox only accepts keys made for a user
+  account, so group-owned images need a key from a group member who can access them. Without a key,
+  images come from Roblox's public thumbnail service: only public images show, capped at 420×420, so
+  9-slice margins are approximate. Unresolvable images show a red hatch in edit mode.
 - **Not rendered:** UIFlexItem/flex alignment, UIPageLayout, UITableLayout, ViewportFrame and VideoFrame
   content, BillboardGui/SurfaceGui. ZIndexBehavior Global is drawn like Sibling.
 - AutoButtonColor hover/press shading is an approximation.

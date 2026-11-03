@@ -182,3 +182,17 @@ textarea.code {
 .rg-bar { position: absolute; pointer-events: none; }
 .rg-missing { background: repeating-linear-gradient(45deg, rgba(255, 80, 80, 0.18) 0 6px, transparent 6px 12px); outline: 1px dashed rgba(255, 120, 120, 0.5); outline-offset: -1px; }
 .screen.edit .rg-input { pointer-events: none; }
+
+.keybox { position: relative; }
+.keybox .popover {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; width: 340px; padding: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.keybox .popover p { white-space: normal; margin: 0; color: var(--dim); line-height: 1.45; }
+.keybox .popover input { width: 100%; box-sizing: border-box; }
+.keybox .popover .row { display: flex; gap: 6px; }
+
+.toolbar > *, .toolbar button { white-space: nowrap; flex-shrink: 0; }
+.toolbar .doc { flex-shrink: 1; min-width: 0; }
+@media (max-width: 1500px) { .toolbar .brand { display: none; } }

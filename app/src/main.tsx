@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { connectBridge } from './editor/bridge';
 import { guardClose, listenForOpenedFiles, openText } from './editor/io';
+import { store } from './editor/store';
+import { setAssetWarningHandler } from './render/assets';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
 
 connectBridge();
+setAssetWarningHandler((msg) => store.log('warn', msg));
 guardClose();
 listenForOpenedFiles();
 
