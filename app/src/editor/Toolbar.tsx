@@ -57,6 +57,11 @@ export function Toolbar() {
       <button className={`play${play ? ' on' : ''}`} onClick={() => store.set('mode', play ? 'edit' : 'play')} title="Run the UI's scripts (F5)">
         {play ? '■ Stop' : '▶ Play'}
       </button>
+      {play && (
+        <button className={`inspect${s.inspect ? ' on' : ''}`} onClick={() => store.set('inspect', !s.inspect)} title="Click things in the running game to select them (or Alt+click)">
+          Inspect
+        </button>
+      )}
       <div className="group">
         <select value={s.device.id} onChange={(e) => store.set('device', DEVICES.find((d) => d.id === e.target.value)!)} title="Device preview">
           {DEVICES.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}

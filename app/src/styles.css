@@ -196,3 +196,6 @@ textarea.code {
 .toolbar > *, .toolbar button { white-space: nowrap; flex-shrink: 0; }
 .toolbar .doc { flex-shrink: 1; min-width: 0; }
 @media (max-width: 1500px) { .toolbar .brand { display: none; } }
+.toolbar .inspect.on { background: var(--accent-2); border-color: var(--accent); }
+.note.live { border-color: var(--accent); }
+.note.live code { word-break: break-all; }

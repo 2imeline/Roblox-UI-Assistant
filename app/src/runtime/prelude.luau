@@ -1123,7 +1123,8 @@ local globals = {
 	game = game, Game = game, workspace = Workspace, Workspace = Workspace,
 	Instance = {
 		new = function(cls, parent)
-			local inst = dec(H.call(INIT.game, "CreateInstance", tostring(cls)))
+			local src, line = debug.info(2, "sl")
+			local inst = dec(H.call(INIT.game, "CreateInstance", tostring(cls), src and `{string.gsub(src, "^[=@]", "")}:{line}` or nil))
 			if parent ~= nil then inst.Parent = parent end
 			return inst
 		end,

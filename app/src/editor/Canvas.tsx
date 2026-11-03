@@ -92,6 +92,7 @@ export function Canvas() {
     const rt = engine.current?.runtime;
     if (s.mode === 'play') {
       if (!rt) return;
+      if (s.inspect || e.altKey) { store.select(hits(e)[0] ?? null); return; }
       const p = toDevice(e);
       rt.pointerDown(p.x, p.y, hits(e), e.button, e.pointerType === 'touch');
       return;
@@ -113,6 +114,8 @@ export function Canvas() {
   const onPointerMove = (e: React.PointerEvent) => {
     const p = toDevice(e);
     if (s.mode === 'play') {
+      if (s.inspect || e.altKey) { const top = hits(e)[0] ?? null; if (top !== hover) setHover(top); return; }
+      if (hover) setHover(null);
       engine.current?.runtime?.pointerMove(p.x, p.y, hits(e), e.pointerType === 'touch');
       return;
     }
@@ -153,6 +156,7 @@ export function Canvas() {
 
   const onPointerUp = (e: React.PointerEvent) => {
     if (s.mode === 'play') {
+      if (s.inspect || e.altKey) return;
       const p = toDevice(e);
       engine.current?.runtime?.pointerUp(p.x, p.y, hits(e), e.button, e.pointerType === 'touch');
       return;
@@ -205,8 +209,10 @@ export function Canvas() {
   // ---------- overlay ----------
   engine.current?.renderer.layout();
   const rect = (i: Inst | null) => (i && isGuiObject(i.className) && engine.current ? engine.current.renderer.rectOf(i) : null);
-  const sel = s.mode === 'edit' ? rect(s.selection) : null;
-  const hov = s.mode === 'edit' && hover !== s.selection && hover && !hover.destroyed && hover.world === store.world ? rect(hover) : null;
+  // While playing, the selection and hover come from the running game (the live Explorer).
+  const world = s.mode === 'play' ? s.live?.world : store.world;
+  const sel = s.selection && !s.selection.destroyed && s.selection.world === world ? rect(s.selection) : null;
+  const hov = (s.mode === 'edit' || s.inspect) && hover !== s.selection && hover && !hover.destroyed && hover.world === world ? rect(hover) : null;
   const box = (r: { x: number; y: number; w: number; h: number }) => ({ left: r.x * zoom, top: r.y * zoom, width: Math.max(1, r.w * zoom), height: Math.max(1, r.h * zoom) });
 
   return (
@@ -242,7 +248,7 @@ export function Canvas() {
           {sel && (
             <div className="sel-box" style={box(sel)}>
               <span className="sel-label">{s.selection!.name}</span>
-              {HANDLES.map((h) => (
+              {s.mode === 'edit' && HANDLES.map((h) => (
                 <div key={h} className={`handle h-${h}`} data-handle={h}
                   onPointerDown={(e) => { e.stopPropagation(); onPointerDown(e); (screenRef.current!).setPointerCapture(e.pointerId); }}
                   onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
@@ -252,7 +258,7 @@ export function Canvas() {
         </div>
       </div>
       <div className="canvas-info">
-        {dev.w}×{dev.h} · {Math.round(zoom * 100)}%{s.mode === 'play' ? ' · Playing' : ' · Double-click to select inside, Alt+click for the innermost'}
+        {dev.w}×{dev.h} · {Math.round(zoom * 100)}%{s.mode === 'play' ? (s.inspect ? ' · Inspecting: click to select' : ' · Playing · Alt+click to inspect') : ' · Double-click to select inside, Alt+click for the innermost'}
         {sel && s.selection && <> · {s.selection.name} {Math.round(sel.w)}×{Math.round(sel.h)} at {Math.round(sel.x)},{Math.round(sel.y - (s.root.box.y))}</>}
       </div>
     </div>

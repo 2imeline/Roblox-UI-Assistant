@@ -32,6 +32,8 @@ export class Inst {
   readonly props = new Map<string, Value>();
   readonly attrs = new Map<string, Value>();
   destroyed = false;
+  /** Script and line that created it while playing ("MainMenu:120"), for the live Explorer. */
+  origin?: string;
   box: Box = { x: 0, y: 0, w: 0, h: 0 };
   /** Absolute content size for UIListLayout/UIGridLayout, canvas size for ScrollingFrame. */
   contentSize = { x: 0, y: 0 };

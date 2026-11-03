@@ -292,6 +292,11 @@ describe('runtime regressions', () => {
     for (const l of lines) expect(l).toMatch(/^false\s.*boom/);
   });
 
+  it('records which script line created each instance', async () => {
+    const { gui } = await boot('local f = Instance.new("Frame")\nf.Name = "Made"\nf.Parent = script.Parent');
+    expect(gui.findFirstChild('Made')?.origin).toBe('MainHUD.Main:1');
+  });
+
   it('starts a LocalScript when it is enabled during play', async () => {
     const { h } = await boot('script.Parent.Later.Enabled = true', {}, [
       { class: 'LocalScript', name: 'Later', properties: { Source: JSON.stringify('print("later")'), Enabled: 'false' } },

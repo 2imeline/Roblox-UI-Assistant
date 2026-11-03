@@ -34,6 +34,10 @@ class Store {
   showTopbar = true;
   logs: LogEntry[] = [];
   mcp: 'off' | 'connecting' | 'connected' | 'replaced' = 'off';
+  /** While playing: the running game's PlayerGui, shown in the Explorer. */
+  live: Inst | null = null;
+  /** While playing: clicks on the canvas select instead of reaching the game. */
+  inspect = false;
   /** Bumped on every change; panels re-render from it. */
   version = 0;
   treeVersion = 0;
@@ -44,6 +48,7 @@ class Store {
   private pending = false;
   private logId = 0;
   private offWorld: () => void = () => {};
+  private offLive: () => void = () => {};
 
   constructor() {
     this.root = this.adopt(parseRblxui(BLANK, this.world).root);
@@ -66,6 +71,21 @@ class Store {
     this.offWorld();
     this.offWorld = root.world.on((ev) => this.changed(ev.k !== 'prop' || ev.key === 'Name'));
     return root;
+  }
+
+  /** Shows a running game in the Explorer (null when play stops). */
+  setLive(root: Inst | null) {
+    this.offLive();
+    this.offLive = () => {};
+    this.live = root;
+    if (root) {
+      // Tree changes and the selected instance's properties; tweens elsewhere don't re-render the panels.
+      this.offLive = root.world.on((ev) => { if (ev.k !== 'prop' || ev.inst === this.selection) this.changed(ev.k !== 'prop'); });
+    } else {
+      this.inspect = false;
+      if (this.selection && this.selection.world !== this.world) this.selection = null;
+    }
+    this.changed(true);
   }
 
   log(kind: LogKind, msg: string, trace?: string) {
@@ -149,7 +169,7 @@ class Store {
     this.changed();
   }
 
-  set<K extends 'mode' | 'device' | 'zoom' | 'backdrop' | 'showTopbar' | 'mcp' | 'path' | 'name' | 'dirty'>(k: K, v: Store[K]) {
+  set<K extends 'mode' | 'device' | 'zoom' | 'backdrop' | 'showTopbar' | 'mcp' | 'path' | 'name' | 'dirty' | 'inspect'>(k: K, v: Store[K]) {
     if ((this as Store)[k] === v) return;
     (this as Store)[k] = v;
     this.changed();

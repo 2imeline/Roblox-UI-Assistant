@@ -126,6 +126,11 @@ that accepts calls, so UI code keeps working; `FireServer` calls are logged. Run
 5 seconds with Roblox's "Script timeout" error instead of freezing the app. Changes scripts make while
 playing are thrown away when you stop, like in Studio.
 
+While playing, the Explorer shows the running game. Click **Inspect** (or Alt+click the canvas) to select
+anything on screen, including UI your scripts build at runtime. The Properties panel then edits it live and
+shows which script line created it, which helps when a game builds its UI in code. Live edits are discarded
+on Stop.
+
 ## Fidelity notes
 
 The canvas reproduces Roblox's layout rules (scale/offset, AnchorPoint, SizeConstraint, AutomaticSize,

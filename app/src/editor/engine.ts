@@ -89,6 +89,7 @@ export class Engine {
     });
     if (this.disposed || session !== this.session) { rt.stop(); return; }
     this.runtime = rt;
+    store.setLive(rt.playerGui);
     this.renderer.render();
     rt.start();
     this.request(0);
@@ -97,6 +98,7 @@ export class Engine {
   edit() {
     this.session++;
     this.stopRuntime();
+    store.setLive(null);
     this.renderer.destroy();
     this.renderer = this.makeRenderer('edit');
     this.request(0);

@@ -143,8 +143,12 @@ function ScriptEditor({ inst, disabled }: { inst: Inst; disabled: boolean }) {
 
 export function Inspector() {
   const s = useStore();
-  const inst = s.selection && !s.selection.destroyed ? s.selection : s.root;
-  const disabled = s.mode === 'play';
+  const sel = s.selection && !s.selection.destroyed ? s.selection : null;
+  // While playing, a selected instance of the running game is edited live (and the change is lost on Stop).
+  const live = !!s.live && !!sel && sel.world === s.live.world;
+  const inst = live || (sel && sel.world === s.world) ? sel! : s.root;
+  const disabled = s.mode === 'play' && !live;
+  const commit = () => { if (!live) store.commit(); };
   const defs = defaultsOf(inst.className);
   const keys = [...new Set([...defs.keys(), ...inst.props.keys()])].filter((k) => k !== 'Source' && k !== 'Font');
   const groups = new Map<string, string[]>();
@@ -153,21 +157,22 @@ export function Inspector() {
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g)!.push(k);
   }
-  const setProp = (k: string, v: Value) => { inst.set(k, v); store.commit(); };
+  const setProp = (k: string, v: Value) => { inst.set(k, v); commit(); };
   const scripts = inst.children.filter((c) => isScript(c.className));
 
   return (
     <div className="panel inspector">
       <div className="panel-head">
         <span className={`badge c-${inst.className}`}>{inst.className}</span>
-        <Field className="name" value={inst.name} disabled={disabled} onCommit={(v) => { if (v.trim()) { inst.setName(v.trim()); store.commit(); } }} />
+        <Field className="name" value={inst.name} disabled={disabled} onCommit={(v) => { if (v.trim()) { inst.setName(v.trim()); commit(); } }} />
       </div>
-      {disabled && <div className="note">Playing. Stop (F5) to edit. Changes made by scripts are not saved.</div>}
+      {disabled && <div className="note">Playing. Click <b>Inspect</b> (or Alt+click) to pick something on screen, or choose it in the Explorer. Stop (F5) to edit the file.</div>}
+      {live && <div className="note live">Live: changes go to the running game and are lost when you stop.{inst.origin && <> Created by <code>{inst.origin}</code>.</>}</div>}
       <div className="panel-body">
         {isScript(inst.className) && (
           <section>
             <h3>Source</h3>
-            <ScriptEditor inst={inst} disabled={disabled} />
+            <ScriptEditor inst={inst} disabled={disabled || live} />
           </section>
         )}
         {GROUPS.filter((g) => groups.has(g)).map((g) => (
@@ -182,7 +187,7 @@ export function Inspector() {
                   <span className={`key${explicit ? ' set' : ''}`} title={explicit ? `${k} (set in file)` : `${k} (default)`}>{k}</span>
                   <ValueEditor k={k} value={value} set={(v) => setProp(k, v)} disabled={disabled} />
                   {explicit && defs.has(k) && (
-                    <button className="reset" title={isDefault ? 'Remove from file' : 'Reset to default'} disabled={disabled} onClick={() => { inst.reset(k); store.commit(); }}>×</button>
+                    <button className="reset" title={isDefault ? 'Remove from file' : 'Reset to default'} disabled={disabled} onClick={() => { inst.reset(k); commit(); }}>×</button>
                   )}
                 </div>
               );
@@ -194,8 +199,8 @@ export function Inspector() {
           {[...inst.attrs].map(([k, v]) => (
             <div className="row" key={k}>
               <span className="key set">{k}</span>
-              <ValueEditor k={k} value={v} set={(nv) => { inst.setAttr(k, nv); store.commit(); }} disabled={disabled} />
-              <button className="reset" disabled={disabled} onClick={() => { inst.setAttr(k, null); store.commit(); }}>×</button>
+              <ValueEditor k={k} value={v} set={(nv) => { inst.setAttr(k, nv); commit(); }} disabled={disabled} />
+              <button className="reset" disabled={disabled} onClick={() => { inst.setAttr(k, null); commit(); }}>×</button>
             </div>
           ))}
           {!disabled && (
@@ -203,7 +208,7 @@ export function Inspector() {
               onCommit={(v) => {
                 const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/.exec(v);
                 if (!m) return;
-                try { inst.setAttr(m[1], parseLiteral(m[2])); store.commit(); } catch (e) { store.log('warn', `Attribute: ${(e as Error).message}`); }
+                try { inst.setAttr(m[1], parseLiteral(m[2])); commit(); } catch (e) { store.log('warn', `Attribute: ${(e as Error).message}`); }
               }} />
           )}
           {!disabled && <div className="hint">Add: <code>Name = Lua literal</code>, e.g. <code>Price = 25</code></div>}
@@ -214,7 +219,7 @@ export function Inspector() {
             {scripts.map((sc) => (
               <button key={sc.id} className="link" onClick={() => store.select(sc)}>{sc.className}: {sc.name}</button>
             ))}
-            {!disabled && (
+            {!disabled && !live && (
               <div className="buttons">
                 {(['LocalScript', 'ModuleScript'] as const).map((cls) => (
                   <button key={cls} onClick={() => {
@@ -222,7 +227,7 @@ export function Inspector() {
                     sc.set('Source', cls === 'LocalScript' ? 'local gui = script.Parent\n\n' : 'local module = {}\n\nreturn module\n');
                     sc.setParent(inst);
                     store.select(sc);
-                    store.commit();
+                    commit();
                   }}>+ {cls}</button>
                 ))}
               </div>

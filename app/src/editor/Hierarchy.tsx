@@ -16,14 +16,16 @@ const MIME = 'application/x-rbxui-tree';
 
 export function Hierarchy() {
   const s = useStore();
+  const root = s.mode === 'play' && s.live ? s.live : s.root;
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(['r']));
   // Reveal the selection (e.g. after clicking it on the canvas).
   useEffect(() => {
-    const path = s.selection?.pathFrom(s.root);
+    if (!s.selection || s.selection.world !== root.world) return;
+    const path = s.selection.pathFrom(root);
     if (!path) return;
     const keys = path.slice(0, -1).map((_, i) => ['r', ...path.slice(0, i + 1)].join('/'));
     setExpanded((e) => (keys.every((k) => e.has(k)) ? e : new Set([...e, 'r', ...keys])));
-  }, [s.selection, s.root]);
+  }, [s.selection, root]);
   const [drop, setDrop] = useState<{ key: string; zone: 'before' | 'after' | 'into' } | null>(null);
   const rows: { inst: Inst; depth: number; key: string }[] = [];
   const walk = (inst: Inst, depth: number, key: string) => {
@@ -31,7 +33,7 @@ export function Hierarchy() {
     if (!expanded.has(key)) return;
     inst.children.forEach((c, i) => walk(c, depth + 1, `${key}/${i}`));
   };
-  walk(s.root, 0, 'r');
+  walk(root, 0, 'r');
 
   const toggle = (key: string) => setExpanded((c) => { const n = new Set(c); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const zoneOf = (e: React.DragEvent, isRoot: boolean): 'before' | 'after' | 'into' => {
@@ -60,7 +62,7 @@ export function Hierarchy() {
 
   return (
     <div className="panel hierarchy">
-      <div className="panel-head"><h2>Explorer</h2></div>
+      <div className="panel-head"><h2>{root === s.live ? 'Explorer · live game' : 'Explorer'}</h2></div>
       <div className="panel-body tree" role="tree">
         {rows.map(({ inst, depth, key }) => {
           const hasKids = inst.children.length > 0;
@@ -73,12 +75,12 @@ export function Hierarchy() {
               aria-selected={isSel}
               className={`node k-${kindOf(inst.className)}${isSel ? ' sel' : ''}${hidden ? ' hidden' : ''}${drop?.key === key ? ` drop-${drop.zone}` : ''}`}
               style={{ paddingLeft: 6 + depth * 14 }}
-              draggable={inst !== s.root && s.mode === 'edit'}
+              draggable={inst !== root && s.mode === 'edit'}
               onDragStart={(e) => { e.dataTransfer.setData(MIME, JSON.stringify(inst.pathFrom(store.root))); e.dataTransfer.effectAllowed = 'move'; }}
-              onDragOver={(e) => { if (!e.dataTransfer.types.includes(MIME)) return; e.preventDefault(); setDrop({ key, zone: zoneOf(e, inst === s.root) }); }}
+              onDragOver={(e) => { if (!e.dataTransfer.types.includes(MIME)) return; e.preventDefault(); setDrop({ key, zone: zoneOf(e, inst === root) }); }}
               onDragLeave={() => setDrop((d) => (d?.key === key ? null : d))}
               onDrop={(e) => onDrop(e, inst)}
-              onClick={() => store.select(inst === s.root ? null : inst)}
+              onClick={() => store.select(inst === root ? null : inst)}
             >
               <span className={`twisty${hasKids ? '' : ' none'}`} onClick={(e) => { e.stopPropagation(); if (hasKids) toggle(key); }}>
                 {hasKids ? (expanded.has(key) ? '▾' : '▸') : ''}
