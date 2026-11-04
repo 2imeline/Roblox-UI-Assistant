@@ -1123,8 +1123,20 @@ local globals = {
 	game = game, Game = game, workspace = Workspace, Workspace = Workspace,
 	Instance = {
 		new = function(cls, parent)
-			local src, line = debug.info(2, "sl")
-			local inst = dec(H.call(INIT.game, "CreateInstance", tostring(cls), src and `{string.gsub(src, "^[=@]", "")}:{line}` or nil))
+			-- Who asked for it: the calling line, plus the first line in another script so a shared helper
+			-- (a UI kit's make function) doesn't hide which screen created the element.
+			local origin, first
+			for lvl = 2, 12 do
+				local src, line = debug.info(lvl, "sl")
+				if not src then break end
+				if line and line > 0 then
+					local name = string.gsub(src, "^[=@]", "")
+					local here = `{string.match(name, "([^%.]+%.[^%.]+)$") or name}:{line}`
+					if not first then first, origin = src, here
+					elseif src ~= first then origin = `{origin} ← {here}` break end
+				end
+			end
+			local inst = dec(H.call(INIT.game, "CreateInstance", tostring(cls), origin))
 			if parent ~= nil then inst.Parent = parent end
 			return inst
 		end,

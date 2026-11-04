@@ -293,8 +293,11 @@ describe('runtime regressions', () => {
   });
 
   it('records which script line created each instance', async () => {
-    const { gui } = await boot('local f = Instance.new("Frame")\nf.Name = "Made"\nf.Parent = script.Parent');
-    expect(gui.findFirstChild('Made')?.origin).toBe('MainHUD.Main:1');
+    const { gui } = await boot(
+      'local kit = require(script.Parent.Kit)\nlocal f = kit.make("Made")\nf.Parent = script.Parent',
+      {}, [{ class: 'ModuleScript', name: 'Kit', properties: { Source: JSON.stringify('local function new(n)\n\tlocal f = Instance.new("Frame")\n\tf.Name = n\n\treturn f\nend\nreturn { make = function(n) return new(n) end }') } }]);
+    // The helper's line, then the first line in a different script (the one that asked for it).
+    expect(gui.findFirstChild('Made')?.origin).toBe('MainHUD.Kit:2 ← MainHUD.Main:2');
   });
 
   it('starts a LocalScript when it is enabled during play', async () => {

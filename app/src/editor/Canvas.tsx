@@ -32,6 +32,15 @@ export function pick(hits: Inst[], selection: Inst | null, mode: 'click' | 'dril
 }
 export const DRAG_MIME = 'application/x-rbxui';
 
+/** Whether an element draws anything itself (invisible containers are skipped first when inspecting). */
+export function paints(i: Inst): boolean {
+  const t = (k: string) => Number(i.get(k) ?? 0) < 1;
+  if (t('BackgroundTransparency')) return true;
+  if (i.has('Text') && String(i.get('Text') ?? '') !== '' && t('TextTransparency')) return true;
+  if (i.has('Image') && String(i.get('Image') ?? '') !== '' && t('ImageTransparency')) return true;
+  return i.children.some((c) => c.className === 'UIStroke' && c.get('Enabled') !== false && Number(c.get('Transparency') ?? 0) < 1);
+}
+
 export function Canvas() {
   const s = useStore();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -41,6 +50,8 @@ export function Canvas() {
   const drag = useRef<Drag | null>(null);
   const [avail, setAvail] = useState({ w: 800, h: 600 });
   const [hover, setHover] = useState<Inst | null>(null);
+  // Inspect clicks on the same spot step down through the stack of elements under the pointer.
+  const lastPick = useRef<{ x: number; y: number; index: number } | null>(null);
   const [insertLine, setInsertLine] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const dev = s.device;
   const zoom = s.zoom === 'fit' ? Math.max(0.05, Math.min((avail.w - 40) / dev.w, (avail.h - 40) / dev.h)) : s.zoom;
@@ -92,7 +103,15 @@ export function Canvas() {
     const rt = engine.current?.runtime;
     if (s.mode === 'play') {
       if (!rt) return;
-      if (s.inspect || e.altKey) { store.select(hits(e)[0] ?? null); return; }
+      if (s.inspect || e.altKey) {
+        const all = hits(e), last = lastPick.current;
+        const stack = [...all.filter(paints), ...all.filter((i) => !paints(i))];
+        const again = last && Math.hypot(last.x - e.clientX, last.y - e.clientY) < 4 && stack[last.index] === store.selection;
+        const index = again ? (last.index + 1) % Math.max(stack.length, 1) : 0;
+        lastPick.current = { x: e.clientX, y: e.clientY, index };
+        store.select(stack[index] ?? null);
+        return;
+      }
       const p = toDevice(e);
       rt.pointerDown(p.x, p.y, hits(e), e.button, e.pointerType === 'touch');
       return;
@@ -114,7 +133,7 @@ export function Canvas() {
   const onPointerMove = (e: React.PointerEvent) => {
     const p = toDevice(e);
     if (s.mode === 'play') {
-      if (s.inspect || e.altKey) { const top = hits(e)[0] ?? null; if (top !== hover) setHover(top); return; }
+      if (s.inspect || e.altKey) { const all = hits(e); const top = all.find(paints) ?? all[0] ?? null; if (top !== hover) setHover(top); return; }
       if (hover) setHover(null);
       engine.current?.runtime?.pointerMove(p.x, p.y, hits(e), e.pointerType === 'touch');
       return;
@@ -207,8 +226,15 @@ export function Canvas() {
   };
 
   // ---------- overlay ----------
-  engine.current?.renderer.layout();
-  const rect = (i: Inst | null) => (i && isGuiObject(i.className) && engine.current ? engine.current.renderer.rectOf(i) : null);
+  engine.current?.renderer.render();
+  // Measured from the drawn element, so UIScale, rotation and scrolling are included.
+  const rect = (i: Inst | null) => {
+    const el = i && isGuiObject(i.className) ? engine.current?.renderer.element(i) : null;
+    if (!el || !screenRef.current) return null;
+    const r = el.getBoundingClientRect(), sr = screenRef.current.getBoundingClientRect();
+    if (!r.width && !r.height) return null;
+    return { x: (r.left - sr.left) / zoom, y: (r.top - sr.top) / zoom, w: r.width / zoom, h: r.height / zoom };
+  };
   // While playing, the selection and hover come from the running game (the live Explorer).
   const world = s.mode === 'play' ? s.live?.world : store.world;
   const sel = s.selection && !s.selection.destroyed && s.selection.world === world ? rect(s.selection) : null;
@@ -258,8 +284,8 @@ export function Canvas() {
         </div>
       </div>
       <div className="canvas-info">
-        {dev.w}×{dev.h} · {Math.round(zoom * 100)}%{s.mode === 'play' ? (s.inspect ? ' · Inspecting: click to select' : ' · Playing · Alt+click to inspect') : ' · Double-click to select inside, Alt+click for the innermost'}
-        {sel && s.selection && <> · {s.selection.name} {Math.round(sel.w)}×{Math.round(sel.h)} at {Math.round(sel.x)},{Math.round(sel.y - (s.root.box.y))}</>}
+        {dev.w}×{dev.h} · {Math.round(zoom * 100)}%{s.mode === 'play' ? (s.inspect ? ' · Inspecting: click to select, click again to pick what is underneath' : ' · Playing · Alt+click to inspect') : ' · Double-click to select inside, Alt+click for the innermost'}
+        {sel && s.selection && <> · {s.selection.name} {Math.round(sel.w)}×{Math.round(sel.h)} at {Math.round(sel.x)},{Math.round(sel.y)}</>}
       </div>
     </div>
   );

@@ -530,7 +530,7 @@ export class Runtime {
         const info = CLASSES.get(cls);
         if ((info && !info.creatable) || !/^[A-Z][A-Za-z0-9]*$/.test(cls) || BEHAVIOR_SERVICES.has(cls)) throw new Error(`Unable to create an Instance of type "${cls}"`);
         const inst = this.world.create(cls, cls);
-        if (typeof a[1] === 'string') inst.origin = a[1].replace(/^Players\.[^.]+\.PlayerGui\./, '');
+        if (typeof a[1] === 'string') inst.origin = a[1];
         return encInst(inst);
       }
       case 'GetMouse': return encInst(this.mouse);
