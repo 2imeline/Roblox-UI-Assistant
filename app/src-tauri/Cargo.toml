@@ -1,6 +1,6 @@
 [package]
 name = "roblox-ui-builder"
-version = "0.3.1"
+version = "0.3.2"
 description = "Visual builder for Roblox UI (.rblxui)"
 edition = "2021"
 

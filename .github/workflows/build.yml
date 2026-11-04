@@ -47,6 +47,8 @@ jobs:
     needs: test
     strategy:
       fail-fast: false
+      # One at a time: each build adds its platform to the release's latest.json, and parallel builds overwrite each other's.
+      max-parallel: 1
       matrix:
         include:
           - os: windows-latest
